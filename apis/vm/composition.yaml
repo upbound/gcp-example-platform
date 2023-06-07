@@ -1,0 +1,66 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xvirtualmachines.infrastructure.example.org
+  labels:
+    provider: gcp
+spec:
+  compositeTypeRef:
+    apiVersion: infrastructure.example.org/v1alpha1
+    kind: XVirtualMachine
+  resources:
+    - base:
+        apiVersion: infrastructure.example.org/v1alpha1
+        kind: XNetwork
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: spec.id
+        - fromFieldPath: spec.parameters.location
+          toFieldPath: spec.location
+      name: compositeNetGoogleVM
+    - base:
+        apiVersion: compute.gcp.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            networkInterface:
+              - networkSelector:
+                  matchLabels:
+                    networks.infrastructure.example.org/network-id: to-be-patched
+                subnetworkSelector:
+                  matchLabels:
+                    networks.infrastructure.example.org/network-id: to-be-patched
+            bootDisk:
+              - initializeParams:
+                  - image: debian-cloud/debian-11 # patched
+            machineType: e2-medium # patched
+            zone: us-east1-b # patched
+      patches:
+        - fromFieldPath: spec.parameters.location
+          toFieldPath: spec.forProvider.zone
+          transforms:
+            - type: map
+              map:
+                'East US': 'us-east1-b'
+                'West US': 'us-west1-a'
+        - fromFieldPath: spec.parameters.operatingSystem
+          toFieldPath: spec.forProvider.bootDisk[0].initializeParams[0].image
+          transforms:
+            - type: map
+              map:
+                'Windows': windows-cloud/windows-2022
+                'Linux (Ubuntu)': debian-cloud/debian-11
+        - fromFieldPath: spec.parameters.vmSize
+          toFieldPath: spec.forProvider.machineType
+          transforms:
+            - type: map
+              map:
+                '1 vCPU, 1 GB': e2-standard-2
+                '2 vCPU, 8 GB': n2-standard-2
+                '4 vCPU, 16 GB': n2-standard-4
+        # Create this machine in the Network and Subnetwork referenced by network ID
+        - fromFieldPath: spec.id
+          toFieldPath: spec.forProvider.networkInterface[0].networkSelector.matchLabels[networks.infrastructure.example.org/network-id]
+        - fromFieldPath: spec.id
+          toFieldPath: spec.forProvider.networkInterface[0].subnetworkSelector.matchLabels[networks.infrastructure.example.org/network-id]
+      name: compositeMachineGoogle

@@ -1,0 +1,65 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xvirtualmachines.infrastructure.example.org
+spec:
+  group: infrastructure.example.org
+  names:
+    kind: XVirtualMachine
+    plural: xvirtualmachines
+  claimNames:
+    kind: VirtualMachine
+    plural: virtualmachines
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: "ID of this Virtual Machine that other objects will use to refer to it."
+                  minLength: 1
+                  # Maximum key length in GCP is 40 characters. We are setting a 34 character
+                  # limit to accomodate the generated hash suffix ('-' + 5 chars).
+                  maxLength: 34
+                parameters:
+                  type: object
+                  description: "Virtual Machine parameters."
+                  properties:
+                    location:
+                      type: string
+                      description: "Zone or region for the Virtual Machine (default: `us-east1-b`)"
+                      enum:
+                        - 'East US'
+                        - 'West US'
+                    operatingSystem:
+                      type: string
+                      description: "The Operating System to  be used for the Virtual Machine image"
+                      enum:
+                        - 'Windows'
+                        - 'Linux (Ubuntu)'
+                    vmSize:
+                      type: string
+                      description: "Size of the Virtual Machine (default: `e2-standard-4`)"
+                      enum:
+                        - '1 vCPU, 1 GB'
+                        - '2 vCPU, 8 GB'
+                        - '4 vCPU, 16 GB'
+                  required:
+                    - location
+              required:
+                - id
+                - parameters
+            status:
+              type: object
+              properties:
+                subnetIds:
+                  type: array
+                  items:
+                    type: string

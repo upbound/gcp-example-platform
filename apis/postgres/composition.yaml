@@ -1,0 +1,53 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xpostgresqlinstances.gcp.database.starter.org
+  labels:
+    provider: gcp
+spec:
+  writeConnectionSecretsToNamespace: upbound-system
+  compositeTypeRef:
+    apiVersion: database.starter.org/v1alpha1
+    kind: XPostgreSQLInstance
+  resources:
+    - name: DBInstance
+      base:
+        apiVersion: sql.gcp.upbound.io/v1beta1
+        kind: DatabaseInstance
+        spec:
+          forProvider:
+            databaseVersion: POSTGRES_13
+            deletionProtection: false
+            region: us-west1
+            settings:
+              - diskSize: 20
+                tier: db-f1-micro
+          writeConnectionSecretToRef:
+            namespace: upbound-system
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.region"
+          toFieldPath: "spec.forProvider.region"
+          transforms:
+          - type: map
+            map:
+              east: us-east1
+              west: us-west1
+        - fromFieldPath: "spec.parameters.size"
+          toFieldPath: "spec.forProvider.settings[0].tier"
+          transforms:
+          - type: map
+            map:
+              small: db-f1-micro
+              medium: db-g1-small
+              large: db-custom-16-61440
+        - fromFieldPath: "spec.parameters.storage"
+          toFieldPath: "spec.forProvider.settings[0].diskSize"
+      connectionDetails:
+        - fromFieldPath: "status.atProvider.publicIpAddress"
+          name: endpoint
